@@ -68,10 +68,20 @@ if (isset($update["message"])) {
             if (titleMatches($title, $fileName)) {
 
                 $downloadLink = generateTelegramDownloadLink($video["file_id"]);
-                updateLinkInFile("links.txt", $title, $downloadLink);
-                pushFileToGitHub("links.txt");
 
-                sendMessage($chat_id, "✅ $title updated.");
+                if (!$downloadLink) {
+                    sendMessage($chat_id, "Failed to generate download link.");
+                    exit;
+                }
+                
+                updateLinkInFile("links.txt", $title, $downloadLink);
+                
+                if (pushFileToGitHub("links.txt")) {
+                    sendMessage($chat_id, "✅ $title updated & synced.");
+                } else {
+                    sendMessage($chat_id, "Updated locally but GitHub push failed.");
+                }
+
                 exit;
             }
         }
