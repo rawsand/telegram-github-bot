@@ -70,13 +70,20 @@ function generateTelegramDownloadLink($file_id) {
 
     $botToken = getenv("BOT_TOKEN");
 
-    $response = json_decode(file_get_contents(
-        "https://api.telegram.org/bot$botToken/getFile?file_id=$file_id"
-    ), true);
+    $url = "https://api.telegram.org/bot$botToken/getFile?file_id=$file_id";
 
-    if (!isset($response["result"]["file_path"])) return false;
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
 
-    $filePath = $response["result"]["file_path"];
+    $data = json_decode($response, true);
+
+    if (!isset($data["result"]["file_path"])) {
+        return false;
+    }
+
+    $filePath = $data["result"]["file_path"];
 
     return "https://api.telegram.org/file/bot$botToken/$filePath";
 }
