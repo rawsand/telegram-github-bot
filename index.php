@@ -1,317 +1,134 @@
 <?php
-require_once "config.php";
+include "config.php";
+include "functions.php";
 
-/* -----------------------------
-   GitHub Temporary Mapping File
--------------------------------*/
-define("GITHUB_PENDING_FILE", "pending_links.txt"); // stores SHORTID|URL temporarily
+// Only allow POST requests
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') exit;
 
+// Read incoming update
 $update = json_decode(file_get_contents("php://input"), true);
-if (!$update) exit;
 
-/* -----------------------------
-   SECURITY — Only OWNER_ID can use bot
--------------------------------*/
-if (isset($update["message"])) {
-    if ($update["message"]["chat"]["id"] != OWNER_ID) exit;
-}
+// File to store temporary user state
+$stateFile = "user_state.json";
+$states = file_exists($stateFile) ? json_decode(file_get_contents($stateFile), true) : [];
 
-/* -----------------------------
-   START COMMAND
--------------------------------*/
-if (isset($update["message"]["text"]) && $update["message"]["text"] == "/start") {
-    sendMessage(OWNER_ID, "Send a video (≤2GB) or a direct link to update.");
-    exit;
-}
+// Get user ID from message or callback
+$user_id = $update["message"]["from"]["id"] 
+    ?? $update["callback_query"]["from"]["id"] 
+    ?? null;
 
-/* ==============================
-   CASE 1 — VIDEO UPDATE
-============================== */
-if (isset($update["message"]["video"])) {
+// Restrict access to only your Telegram ID
+if ($user_id != $allowedUser) exit;
 
-    $video = $update["message"]["video"];
-    $file_name = $video["file_name"] ?? "";
-    $file_size = $video["file_size"];
-    $file_id   = $video["file_id"];
-
-    if ($file_size > MAX_FILE_SIZE) exit;
-
-    $matched = matchTitle($file_name);
-    if (!$matched) exit;
-
-    $file_info = telegramApi("getFile", ["file_id"=>$file_id]);
-    if (!$file_info["ok"]) exit;
-
-    $file_path = $file_info["result"]["file_path"];
-    $download_link = "https://api.telegram.org/file/bot".BOT_TOKEN."/".$file_path;
-
-    updateGithubFile($matched, $download_link);
-    sendMessage(OWNER_ID, "Updated $matched with video link.");
-    exit;
-}
-
-/* ==============================
-   CASE 2 — DIRECT LINK
-   Using GitHub temporary storage
-============================== */
-if (isset($update["message"]["text"]) &&
-    filter_var($update["message"]["text"], FILTER_VALIDATE_URL)) {
-
-    $link = $update["message"]["text"];
-    $shortId = substr(md5($link . time()), 0, 8);
-
-    // 1. Save to GitHub pending_links.txt
-    addPendingLink($shortId, $link);
-
-    // 2. Send buttons
-    $keyboard = [
-        "inline_keyboard" => [
-            [
-                ["text"=>"Sky","callback_data"=>"Sky|$shortId"],
-                ["text"=>"Willow","callback_data"=>"Willow|$shortId"]
-            ],
-            [
-                ["text"=>"Prime1","callback_data"=>"Prime1|$shortId"],
-                ["text"=>"Prime2","callback_data"=>"Prime2|$shortId"]
-            ]
-        ]
-    ];
-
-    sendMessage(OWNER_ID, "Select title to update:", $keyboard);
-    exit;
-}
-
-/* ==============================
-   BUTTON HANDLER
-============================== */
+// ------------------ CALLBACK HANDLING ------------------
 if (isset($update["callback_query"])) {
 
-    $data = $update["callback_query"]["data"];
-    list($title, $shortId) = explode("|", $data);
+    $callback = $update["callback_query"];
+    $data = $callback["data"];
+    $chat_id = $callback["message"]["chat"]["id"];
+    $callback_id = $callback["id"];
 
-    // 1. Read pending link from GitHub
-    $link = getPendingLink($shortId);
-    if (!$link) {
-        telegramApi("answerCallbackQuery", [
-            "callback_query_id"=>$update["callback_query"]["id"],
-            "text"=>"Expired or already used. Send link again."
-        ]);
+    answerCallback($callback_id);
+
+    // ------------------ CASE 2: User selected title ------------------
+    if (isset($states[$chat_id]["link"])) {
+        $link = $states[$chat_id]["link"];   // Link user sent
+        $title = $data;                      // Selected title button
+
+        // Update the link in links.txt
+        updateLinkInFile("links.txt", $title, $link);
+
+        // Push to GitHub
+        pushFileToGitHub("links.txt");
+
+        // Clear user state
+        unset($states[$chat_id]);
+        file_put_contents($stateFile, json_encode($states));
+
+        sendMessage($chat_id, "✅ Updated successfully & synced to GitHub!");
+        exit;
+    }
+}
+
+// ------------------ MESSAGE HANDLING ------------------
+if (isset($update["message"])) {
+
+    $chat_id = $update["message"]["chat"]["id"];
+    $text = $update["message"]["text"] ?? "";
+    $video = $update["message"]["video"] ?? null;
+
+    // /start command
+    if ($text === "/start") {
+        sendMessage($chat_id, "Send a video (for Case 1) or a direct link (for Case 2):");
         exit;
     }
 
-    // 2. Update the selected title
-    updateGithubFile($title, $link);
+    // ------------------ CASE 1: Video Update ------------------
+    if ($video) {
+        $fileName = $video["file_name"] ?? "";
+        $download_link = generateDownloadLink($video); // Your function to generate link
 
-    // 3. Remove from pending_links.txt
-    removePendingLink($shortId);
+        // Titles to match
+        $titles = ["Master Chef","Wheel of fortune","50","Laughter Chef"];
 
-    telegramApi("answerCallbackQuery", [
-        "callback_query_id"=>$update["callback_query"]["id"],
-        "text"=>"Updated $title"
-    ]);
-    exit;
-}
-
-/* ==============================
-   MATCH ENGINE (Case 1 Video Matching)
-============================== */
-function normalizeText($text){
-    $text = strtolower($text);
-    $text = str_replace([".", "-", "_"], " ", $text);
-    $text = preg_replace('/\s+/', ' ', $text);
-    return trim($text);
-}
-
-function matchTitle($file_name){
-    $normalized = normalizeText($file_name);
-
-    if (strpos($normalized, "the 50") !== false)
-        return "50";
-
-    $titles = ["Master Chef","Wheel of fortune","Laughter Chef"];
-    foreach ($titles as $title){
-        $words = explode(" ", normalizeText($title));
-        $match = true;
-        foreach ($words as $word){
-            if (strpos($normalized, $word) === false){
-                $match = false;
-                break;
+        foreach ($titles as $title) {
+            if (titleMatchesFileName($title, $fileName)) {
+                updateLinkInFile("links.txt", $title, $download_link);
+                pushFileToGitHub("links.txt");
+                sendMessage($chat_id, "✅ Video link for '$title' updated successfully!");
+                exit;
             }
         }
-        if ($match) return $title;
+
+        sendMessage($chat_id, "⚠ No matching title found for this video.");
+        exit;
     }
-    return false;
+
+    // ------------------ CASE 2: Direct link ------------------
+    if (filter_var($text, FILTER_VALIDATE_URL)) {
+
+        // Save the link temporarily in user_state.json
+        $states[$chat_id]["link"] = $text;
+        file_put_contents($stateFile, json_encode($states));
+
+        // Send inline keyboard to select title
+        $keyboard = [
+            "inline_keyboard" => [
+                [["text"=>"Sky","callback_data"=>"Sky"],
+                 ["text"=>"Willow","callback_data"=>"Willow"]],
+                [["text"=>"Prime1","callback_data"=>"Prime1"],
+                 ["text"=>"Prime2","callback_data"=>"Prime2"]]
+            ]
+        ];
+
+        sendMessage($chat_id, "Select the title to update:", $keyboard);
+        exit;
+    }
+
+    sendMessage($chat_id, "⚠ Please send a valid video (for Case 1) or a direct link (for Case 2).");
 }
 
-/* ==============================
-   GITHUB FUNCTIONS
-==============================*/
-function updateGithubFile($title,$newLink){
-    $url = "https://api.github.com/repos/".GITHUB_USERNAME."/".GITHUB_REPO."/contents/".GITHUB_FILE_PATH;
+// ------------------ HELPER FUNCTIONS ------------------
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot"
-    ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
-    $response = json_decode(curl_exec($ch),true);
-    curl_close($ch);
+// Check if video file name matches title words
+function titleMatchesFileName($title, $fileName) {
+    $titleWords = preg_split("/[\s]+/", strtolower($title));
+    $fileLower = strtolower($fileName);
 
-    $content = base64_decode($response["content"]);
-    $sha = $response["sha"];
-    $lines = explode("\n",$content);
-
-    for($i=0;$i<count($lines);$i++){
-        if(trim($lines[$i])==$title){
-            $lines[$i+1]=$newLink;
-            break;
+    foreach ($titleWords as $word) {
+        if (!preg_match("/\b".preg_quote($word)."\b/", $fileLower)) {
+            return false;
         }
     }
 
-    $updated = base64_encode(implode("\n",$lines));
-
-    $data=[
-        "message"=>"Updated $title link",
-        "content"=>$updated,
-        "sha"=>$sha
-    ];
-
-    $ch=curl_init($url);
-    curl_setopt($ch,CURLOPT_CUSTOMREQUEST,"PUT");
-    curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($data));
-    curl_setopt($ch,CURLOPT_HTTPHEADER,[
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot",
-        "Content-Type: application/json"
-    ]);
-    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
-    curl_exec($ch);
-    curl_close($ch);
-}
-
-/* -----------------------------
-   Pending Links Functions (Case 2)
--------------------------------*/
-function addPendingLink($shortId, $link){
-    $url = "https://api.github.com/repos/".GITHUB_USERNAME."/".GITHUB_REPO."/contents/".GITHUB_PENDING_FILE;
-
-    // Get existing content
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot"
-    ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
-    $response = json_decode(curl_exec($ch),true);
-    curl_close($ch);
-
-    if(isset($response["content"])){
-        $content = base64_decode($response["content"]);
-        $sha = $response["sha"];
-        $lines = explode("\n",$content);
-    }else{
-        $lines = [];
-        $sha = null;
-    }
-
-    $lines[] = "$shortId|$link";
-    $updated = base64_encode(implode("\n",$lines));
-
-    $data=[
-        "message"=>"Add pending link $shortId",
-        "content"=>$updated
-    ];
-    if($sha) $data["sha"]=$sha;
-
-    $ch=curl_init($url);
-    curl_setopt($ch,CURLOPT_CUSTOMREQUEST,"PUT");
-    curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($data));
-    curl_setopt($ch,CURLOPT_HTTPHEADER,[
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot",
-        "Content-Type: application/json"
-    ]);
-    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
-    curl_exec($ch);
-    curl_close($ch);
-}
-
-function getPendingLink($shortId){
-    $url = "https://api.github.com/repos/".GITHUB_USERNAME."/".GITHUB_REPO."/contents/".GITHUB_PENDING_FILE;
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot"
-    ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
-    $response = json_decode(curl_exec($ch),true);
-    curl_close($ch);
-
-    if(!isset($response["content"])) return false;
-
-    $lines = explode("\n", base64_decode($response["content"]));
-    foreach($lines as $line){
-        if(strpos($line,$shortId."|")===0){
-            return substr($line, strlen($shortId)+1);
+    // Special rule for "50": check if "The" appears just before "50"
+    if ($title === "50") {
+        if (!preg_match("/\bthe[\._\s]*50\b/i", $fileLower)) {
+            return false;
         }
     }
-    return false;
+
+    return true;
 }
 
-function removePendingLink($shortId){
-    $url = "https://api.github.com/repos/".GITHUB_USERNAME."/".GITHUB_REPO."/contents/".GITHUB_PENDING_FILE;
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot"
-    ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
-    $response = json_decode(curl_exec($ch),true);
-    curl_close($ch);
-
-    if(!isset($response["content"])) return;
-
-    $lines = explode("\n", base64_decode($response["content"]));
-    $lines = array_filter($lines, function($line) use ($shortId){ return strpos($line,$shortId."|")!==0; });
-    $updated = base64_encode(implode("\n",$lines));
-
-    $data=[
-        "message"=>"Remove pending link $shortId",
-        "content"=>$updated,
-        "sha"=>$response["sha"]
-    ];
-
-    $ch=curl_init($url);
-    curl_setopt($ch,CURLOPT_CUSTOMREQUEST,"PUT");
-    curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($data));
-    curl_setopt($ch,CURLOPT_HTTPHEADER,[
-        "Authorization: token ".GITHUB_TOKEN,
-        "User-Agent: TelegramBot",
-        "Content-Type: application/json"
-    ]);
-    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
-    curl_exec($ch);
-    curl_close($ch);
-}
-
-/* -----------------------------
-   TELEGRAM FUNCTIONS
--------------------------------*/
-function telegramApi($method,$params){
-    $ch=curl_init("https://api.telegram.org/bot".BOT_TOKEN."/".$method);
-    curl_setopt($ch,CURLOPT_POST,true);
-    curl_setopt($ch,CURLOPT_POSTFIELDS,$params);
-    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
-    $res=json_decode(curl_exec($ch),true);
-    curl_close($ch);
-    return $res;
-}
-
-function sendMessage($chat_id,$text,$keyboard=null){
-    $data=["chat_id"=>$chat_id,"text"=>$text];
-    if($keyboard) $data["reply_markup"]=json_encode($keyboard);
-    telegramApi("sendMessage",$data);
-}
+?>
