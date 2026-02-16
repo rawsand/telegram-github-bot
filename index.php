@@ -2,7 +2,9 @@
 include "config.php";
 include "functions.php";
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') exit;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    exit;
+}
 
 $update = json_decode(file_get_contents("php://input"), true);
 
@@ -10,9 +12,11 @@ $user_id = $update["message"]["from"]["id"]
     ?? $update["callback_query"]["from"]["id"]
     ?? null;
 
-if ($user_id != $allowedUser) exit;
+if ($user_id != $allowedUser) {
+    exit;
+}
 
-/* ================= CALLBACK ================= */
+/* ================= CALLBACK (CASE 2 BUTTON) ================= */
 
 if (isset($update["callback_query"])) {
 
@@ -24,38 +28,60 @@ if (isset($update["callback_query"])) {
     answerCallback($callback_id);
 
     $link = getTempLink($chat_id);
+
     if (!$link) {
-        sendMessage($chat_id, "Send link again.");
+        sendMessage($chat_id, "Expired. Send link again.");
         exit;
     }
 
     updateLinkInFile("links.txt", $title, $link);
-    pushFileToGitHub("links.txt");
+
+    if (pushFileToGitHub("links.txt")) {
+        sendMessage($chat_id, "✅ $title updated & synced to GitHub.");
+    } else {
+        sendMessage($chat_id, "⚠ Updated locally but GitHub push failed.");
+    }
 
     clearTempLink($chat_id);
-
-    sendMessage($chat_id, "✅ Updated & synced to GitHub.");
     exit;
 }
 
-/* ================= MESSAGE ================= */
+/* ================= MESSAGE HANDLING ================= */
 
 if (isset($update["message"])) {
 
     $chat_id = $update["message"]["chat"]["id"];
     $text = $update["message"]["text"] ?? "";
-    $video = $update["message"]["video"] ?? null;
+
+    /* ===== START COMMAND ===== */
 
     if ($text === "/start") {
-        sendMessage($chat_id, "Send video (Case 1) or direct link (Case 2).");
+        sendMessage($chat_id, "Send helper bot message (Case 1) or direct link (Case 2).");
         exit;
     }
 
-    /* -------- CASE 1 : VIDEO -------- */
+    /* =======================================================
+       ================= CASE 1 ==============================
+       Forwarded helper bot message with:
+       - File name
+       - Download link
+       ======================================================= */
 
-    if ($video) {
+    if (strpos($text, "Fɪʟᴇ ɴᴀᴍᴇ") !== false && strpos($text, "Dᴏᴡɴʟᴏᴀᴅ") !== false) {
 
-        $fileName = strtolower($video["file_name"] ?? "");
+        // Extract file name
+        preg_match('/Fɪʟᴇ ɴᴀᴍᴇ\s*:\s*(.+)/u', $text, $fileMatch);
+
+        // Extract download link
+        preg_match('/https?:\/\/[^\s]+/', $text, $linkMatch);
+
+        if (!isset($fileMatch[1]) || !isset($linkMatch[0])) {
+            sendMessage($chat_id, "Could not extract file name or link.");
+            exit;
+        }
+
+        $fileName = trim($fileMatch[1]);
+        $downloadLink = trim($linkMatch[0]);
 
         $titles = [
             "Master Chef",
@@ -65,21 +91,15 @@ if (isset($update["message"])) {
         ];
 
         foreach ($titles as $title) {
+
             if (titleMatches($title, $fileName)) {
 
-                $downloadLink = generateTelegramDownloadLink($video["file_id"]);
-
-                if (!$downloadLink) {
-                    sendMessage($chat_id, "Failed to generate download link.");
-                    exit;
-                }
-                
                 updateLinkInFile("links.txt", $title, $downloadLink);
-                
+
                 if (pushFileToGitHub("links.txt")) {
-                    sendMessage($chat_id, "✅ $title updated & synced.");
+                    sendMessage($chat_id, "✅ $title updated & synced to GitHub.");
                 } else {
-                    sendMessage($chat_id, "Updated locally but GitHub push failed.");
+                    sendMessage($chat_id, "⚠ Updated locally but GitHub push failed.");
                 }
 
                 exit;
@@ -90,7 +110,10 @@ if (isset($update["message"])) {
         exit;
     }
 
-    /* -------- CASE 2 : DIRECT LINK -------- */
+    /* =======================================================
+       ================= CASE 2 ==============================
+       Direct link + button selection
+       ======================================================= */
 
     if (filter_var($text, FILTER_VALIDATE_URL)) {
 
