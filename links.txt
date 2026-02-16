@@ -2,7 +2,7 @@ Master Chef
 https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1430633?hash=d13c8c&d=true
 
 Wheel of fortune
-www.wheeloffortune.com
+https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1430665?hash=b6a22c&d=true
 
 50
 www.50lion.com
