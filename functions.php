@@ -1,5 +1,5 @@
 <?php
-// Telegram API helper
+
 function sendMessage($chat_id, $text, $keyboard = null) {
     global $apiURL;
 
@@ -8,7 +8,7 @@ function sendMessage($chat_id, $text, $keyboard = null) {
         "text" => $text
     ];
 
-    if ($keyboard !== null) {
+    if ($keyboard) {
         $data["reply_markup"] = json_encode($keyboard);
     }
 
@@ -20,90 +20,125 @@ function answerCallback($callback_id) {
     file_get_contents($apiURL . "answerCallbackQuery?callback_query_id=" . $callback_id);
 }
 
-// Update a link in links.txt based on the title
-function updateLinkInFile($file, $title, $newLink) {
-    if (!file_exists($file)) {
-        file_put_contents($file, "");
+/* ================= TITLE MATCH ================= */
+
+function titleMatches($title, $fileName) {
+
+    $normalized = preg_replace("/[^a-z0-9]/", "", strtolower($fileName));
+
+    if ($title === "50") {
+        return preg_match("/the50/", $normalized);
     }
 
-    $lines = file($file, FILE_IGNORE_NEW_LINES);
-    $found = false;
+    $words = explode(" ", strtolower($title));
 
-    for ($i = 0; $i < count($lines); $i++) {
+    foreach ($words as $word) {
+        $cleanWord = preg_replace("/[^a-z0-9]/","",$word);
+        if (strpos($normalized, $cleanWord) === false) return false;
+    }
+
+    return true;
+}
+
+/* ================= UPDATE FILE ================= */
+
+function updateLinkInFile($file, $title, $newLink) {
+
+    $lines = file($file, FILE_IGNORE_NEW_LINES);
+    $output = [];
+    $i = 0;
+
+    while ($i < count($lines)) {
+
         if (trim($lines[$i]) === $title) {
-            $lines[$i + 1] = $newLink; // Replace the next line
-            $found = true;
-            break;
+            $output[] = $title;
+            $output[] = $newLink;
+            $output[] = "";
+            $i += 3;
+        } else {
+            $output[] = $lines[$i];
+            $i++;
         }
     }
 
-    // If title not found, append at end
-    if (!$found) {
-        $lines[] = $title;
-        $lines[] = $newLink;
-    }
-
-    file_put_contents($file, implode(PHP_EOL, $lines));
+    file_put_contents($file, implode(PHP_EOL, $output) . PHP_EOL);
 }
 
-// Push file to GitHub
-function pushFileToGitHub($filePath, $branch = 'main') {
-    $githubToken = getenv('GITHUB_TOKEN');
-    $repo = getenv('GITHUB_REPO'); // format: username/repo
+/* ================= TELEGRAM DOWNLOAD ================= */
+
+function generateTelegramDownloadLink($file_id) {
+
+    $botToken = getenv("BOT_TOKEN");
+
+    $response = json_decode(file_get_contents(
+        "https://api.telegram.org/bot$botToken/getFile?file_id=$file_id"
+    ), true);
+
+    if (!isset($response["result"]["file_path"])) return false;
+
+    $filePath = $response["result"]["file_path"];
+
+    return "https://api.telegram.org/file/bot$botToken/$filePath";
+}
+
+/* ================= GITHUB PUSH ================= */
+
+function pushFileToGitHub($filePath, $branch = "main") {
+
+    $token = getenv("GITHUB_TOKEN");
+    $username = getenv("GITHUB_USERNAME");
+    $repo = getenv("GITHUB_REPO");
 
     $fileName = basename($filePath);
-    $content = file_get_contents($filePath);
-    $base64Content = base64_encode($content);
+    $content = base64_encode(file_get_contents($filePath));
 
-    // Get current file SHA
-    $url = "https://api.github.com/repos/$repo/contents/$fileName?ref=$branch";
+    $api = "https://api.github.com/repos/$username/$repo/contents/$fileName?ref=$branch";
 
-    $ch = curl_init($url);
+    $ch = curl_init($api);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_USERAGENT, "TelegramBot");
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: token $githubToken"
-    ]);
-    $response = curl_exec($ch);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: token $token"]);
+    $response = json_decode(curl_exec($ch), true);
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    $sha = $json['sha'] ?? null;
+    $sha = $response["sha"] ?? null;
+    if (!$sha) return false;
 
-    if (!$sha) {
-        error_log("GitHub SHA fetch failed for $fileName");
-        return false;
-    }
-
-    // Push updated content
     $data = [
         "message" => "Updated $fileName via Telegram bot",
-        "content" => $base64Content,
+        "content" => $content,
         "sha" => $sha,
         "branch" => $branch
     ];
 
-    $ch = curl_init("https://api.github.com/repos/$repo/contents/$fileName");
+    $ch = curl_init("https://api.github.com/repos/$username/$repo/contents/$fileName");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_USERAGENT, "TelegramBot");
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: token $githubToken",
+        "Authorization: token $token",
         "Content-Type: application/json"
     ]);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    $response = curl_exec($ch);
+    curl_exec($ch);
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    return isset($json['content']);
+    return true;
 }
 
-// Generate a downloadable link from the video file (stub function)
-function generateDownloadLink($video) {
-    // Here, you can implement your logic to generate a link to the video
-    // For example, using Telegram File API:
-    $file_id = $video['file_id'];
-    return "https://api.telegram.org/file/bot" . getenv('TELEGRAM_TOKEN') . "/" . $file_id;
+/* ================= TEMP LINK ================= */
+
+function saveTempLink($chat_id, $link) {
+    file_put_contents("temp_$chat_id.txt", $link);
+}
+
+function getTempLink($chat_id) {
+    $file = "temp_$chat_id.txt";
+    return file_exists($file) ? file_get_contents($file) : false;
+}
+
+function clearTempLink($chat_id) {
+    $file = "temp_$chat_id.txt";
+    if (file_exists($file)) unlink($file);
 }
 ?>
