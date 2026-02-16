@@ -8,7 +8,7 @@ www.wheeloffortune.com
 www.50lion.com
 
 Sky
-www.sky.com
+https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1425333?hash=c7a209&d=true
 
 Willow
 www.willow.com
