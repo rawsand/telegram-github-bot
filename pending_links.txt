@@ -1,0 +1,2 @@
+SHORTID1|https://longurl1.com
+SHORTID2|https://longurl2.com
