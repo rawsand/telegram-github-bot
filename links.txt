@@ -11,7 +11,7 @@ Laughter Chef
 https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1428439?hash=c7a209&d=true
 
 Sky
-https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1425333?hash=c7a209&d=true
+https://bl.rutube.ru/livestream/9585fdae92af45f113fdcc9f6c4ba442/index.m3u8?s=KgZtccuHrnaljGaN7cmUwA&e=2068506973&scheme=https
 
 Willow
 www.willow.com
