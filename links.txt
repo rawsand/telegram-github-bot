@@ -17,7 +17,7 @@ Willow
 https://bl.rutube.ru/livestream/9585fdae92af45f113fdcc9f6c4ba442/index.m3u8?s=KgZtccuHrnaljGaN7cmUwA&e=2068506973&scheme=https
 
 Prime1
-https://jiotvmblive.cdn.jio.com/bpk-tv/Sports18_1_HD_BTS/output/index.mpd|cookie=__hdnea__=st=1771249396~exp=1771335796~acl=/*~hmac=cc75e35c45ee9587132b20f77cd275d0df3994a5b035c0d1654da5746bf32d0d&drmScheme=clearkey&drmLicense=bd1ea6a1c1fb5dcdb709434e0826bbc0:f57f22cba32739ce7beb1fab3f3d060b
+https://otte.live.fly.ww.aiv-cdn.net/bom-nitro/live/dash/enc/urvst7sxzy/out/v1/e21d21ec21e34c7192049a44ee3de428/cenc.mpd?|drmScheme=clearkey&drmLicense=ed76c18710d621a87c89dedc7c13019f:7241c82fe48525a9dc6be6d7bb86611f
 
 Prime2
 https://a37aivottepl-a.akamaihd.net/syd-nitro/live/clients/dash/enc/6x6fyrm0ub/out/v1/564bb083afea4561a5a60c4447258379/cenc.mpd?|drmScheme=clearkey&drmLicense=77c7355985551e0e53b14794b7e0b877:ef86a1a5444585a103b8cce925ddc549
