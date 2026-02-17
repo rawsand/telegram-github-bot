@@ -20,5 +20,5 @@ Prime1
 www.prime.com
 
 Prime2
-https://filetolinkneon3-1c3d70c7a0aa.herokuapp.com/stream/1404577?hash=d81724&d=true
+https://a37aivottepl-a.akamaihd.net/syd-nitro/live/clients/dash/enc/6x6fyrm0ub/out/v1/564bb083afea4561a5a60c4447258379/cenc.mpd?|drmScheme=clearkey&drmLicense=77c7355985551e0e53b14794b7e0b877:ef86a1a5444585a103b8cce925ddc549
 
