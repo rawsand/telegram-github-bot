@@ -8,10 +8,10 @@ https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1430665?hash=b6a22c&d=
 https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1430663?hash=40037a&d=true
 
 Laughter Chef
-https://filetolinkneon4-484f8cd71236.herokuapp.com/stream/1486095?hash=2a33e5&d=true
+https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1428439?hash=c7a209&d=true
 
 Sky
-https://a201aivottlinear-a.akamaihd.net/OTTB/bom-nitro/live/dash/enc/qfztzp310t/out/v1/e4c61ee26ce340dd86baebd11656c804/cenc.mpd?|drmScheme=clearkey&drmLicense=e2135bf415cfea9ea3e6b26a6fce8fc3:2671da359a0a860668baca2e34f243f6
+https://hub.cooldown.buzz/dc52ff23b530f5bc1d22000c69316dd7?token=1771862977140
 
 Willow
 https://bl.rutube.ru/livestream/9585fdae92af45f113fdcc9f6c4ba442/index.m3u8?s=KgZtccuHrnaljGaN7cmUwA&e=2068506973&scheme=https
