@@ -11,10 +11,10 @@ Laughter Chef
 https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1428439?hash=c7a209&d=true
 
 Sky
-https://file-to-link-2zyro-b5b2da12a955.herokuapp.com/dl/699d91dcc23cc588e2605106
+https://a201aivottlinear-a.akamaihd.net/OTTB/bom-nitro/live/dash/enc/qfztzp310t/out/v1/e4c61ee26ce340dd86baebd11656c804/cenc.mpd?|drmScheme=clearkey&drmLicense=e2135bf415cfea9ea3e6b26a6fce8fc3:2671da359a0a860668baca2e34f243f6
 
 Willow
-https://bl.rutube.ru/livestream/9585fdae92af45f113fdcc9f6c4ba442/index.m3u8?s=KgZtccuHrnaljGaN7cmUwA&e=2068506973&scheme=https
+https://filetolinkneon4-484f8cd71236.herokuapp.com/stream/1504684?hash=283d75&d=true
 
 Prime1
 https://a201aivottlinear-a.akamaihd.net/OTTB/bom-nitro/live/dash/enc/qfztzp310t/out/v1/e4c61ee26ce340dd86baebd11656c804/cenc.mpd?|drmScheme=clearkey&drmLicense=e2135bf415cfea9ea3e6b26a6fce8fc3:2671da359a0a860668baca2e34f243f6
