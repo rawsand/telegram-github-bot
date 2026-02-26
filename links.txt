@@ -17,7 +17,7 @@ Willow
 https://bl.rutube.ru/livestream/9585fdae92af45f113fdcc9f6c4ba442/index.m3u8?s=KgZtccuHrnaljGaN7cmUwA&e=2068506973&scheme=https
 
 Prime1
-https://pub-699838cc143d45d8b5ed463b9b3f4ea7.r2.dev/c3c931fa8589aed0c72ac71deabaf1b8?token=1772101371155
+https://live-pv-ta.amazon.fastly-edge.com/lhr-nitro/live/clients/dash/enc/wwrmho82pc/out/v1/d7130f460d41486ea7e8e3eb45f0522f/cenc.mpd|drmScheme=clearkey&drmLicense=baafdb8ebcbbc0655332291da6f121da:60ac892e0ea0b2c46fc6837c97ed641a
 
 Prime2
 https://a37aivottepl-a.akamaihd.net/syd-nitro/live/clients/dash/enc/6x6fyrm0ub/out/v1/564bb083afea4561a5a60c4447258379/cenc.mpd?|drmScheme=clearkey&drmLicense=77c7355985551e0e53b14794b7e0b877:ef86a1a5444585a103b8cce925ddc549
