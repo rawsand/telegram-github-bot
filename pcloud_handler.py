@@ -1,18 +1,5 @@
 import requests
 
-class StreamWrapper:
-    def __init__(self, response, progress_callback=None):
-        self.response = response
-        self.progress_callback = progress_callback
-
-    def read(self, size=1024*1024):
-        chunk = self.response.raw.read(size)
-
-        if chunk and self.progress_callback:
-            self.progress_callback(chunk)
-
-        return chunk
-
 
 class PcloudHandler:
 
@@ -32,7 +19,7 @@ class PcloudHandler:
         return r["quota"] - r["usedquota"]
 
 
-    # ================= FILE LIST =================
+    # ================= LIST FILES =================
 
     def list_files(self):
 
@@ -51,7 +38,6 @@ class PcloudHandler:
             for f in r["metadata"]["contents"]:
 
                 if not f["isfolder"]:
-
                     files.append((f["name"], f["fileid"]))
 
         return files
@@ -74,21 +60,44 @@ class PcloudHandler:
 
     def upload_stream(self, response, filename, progress_callback=None):
 
-        stream = StreamWrapper(response, progress_callback)
+        # create upload session
+        session = requests.get(
+            "https://api.pcloud.com/upload_create",
+            params={"auth": self.token}
+        ).json()
 
-        files = {
-            "file": (filename, stream)
-        }
+        uploadid = session["uploadid"]
 
-        data = {
-            "auth": self.token,
-            "folderid": 0
-        }
+        uploaded = 0
 
-        r = requests.post(
-            "https://api.pcloud.com/uploadfile",
-            files=files,
-            data=data
+        for chunk in response.iter_content(8 * 1024 * 1024):
+
+            if not chunk:
+                continue
+
+            requests.post(
+                "https://api.pcloud.com/upload_write",
+                params={
+                    "auth": self.token,
+                    "uploadid": uploadid
+                },
+                data=chunk
+            )
+
+            uploaded += len(chunk)
+
+            if progress_callback:
+                progress_callback(uploaded)
+
+        # save file
+        r = requests.get(
+            "https://api.pcloud.com/upload_save",
+            params={
+                "auth": self.token,
+                "uploadid": uploadid,
+                "folderid": 0,
+                "name": filename
+            }
         )
 
         return r.json()
