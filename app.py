@@ -1,236 +1,90 @@
-import os
-import re
-import threading
 import requests
-from datetime import datetime
 from flask import Flask, request
 
-from pcloud_handler import PcloudHandler
+BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+PCLOUD_TOKEN = "YOUR_PCLOUD_API_TOKEN"
+
+TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+PCLOUD_UPLOAD = "https://api.pcloud.com/uploadfile"
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-PCLOUD_TOKEN = os.getenv("PCLOUD_TOKEN")
-
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-
-PCLOUD = PcloudHandler(PCLOUD_TOKEN)
-
-pending_links = {}
-
-
-# ================= TELEGRAM =================
 
 def send_message(chat_id, text):
-
-    r = requests.post(
+    requests.post(
         f"{TELEGRAM_API}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": text
-        }
+        json={"chat_id": chat_id, "text": text}
     )
 
+
+def get_file_path(file_id):
+    r = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}")
+    return r.json()["result"]["file_path"]
+
+
+def stream_upload_to_pcloud(file_url, filename):
+
+    telegram_stream = requests.get(file_url, stream=True)
+
+    files = {
+        "file": (filename, telegram_stream.raw)
+    }
+
+    data = {
+        "auth": PCLOUD_TOKEN,
+        "folderid": 0
+    }
+
+    r = requests.post(PCLOUD_UPLOAD, files=files, data=data)
     return r.json()
 
 
-def edit_message(chat_id, message_id, text):
+@app.route("/webhook", methods=["POST"])
+def webhook():
 
-    requests.post(
-        f"{TELEGRAM_API}/editMessageText",
-        json={
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "text": text
-        }
-    )
+    update = request.json
 
+    if "message" not in update:
+        return "ok"
 
-# ================= FILENAME =================
+    message = update["message"]
+    chat_id = message["chat"]["id"]
 
-def extract_filename(headers, url):
+    file_id = None
+    filename = None
 
-    cd = headers.get("Content-Disposition")
+    if "video" in message:
+        file_id = message["video"]["file_id"]
+        filename = f"{file_id}.mp4"
 
-    if cd:
-        match = re.findall(r'filename="?([^";]+)"?', cd)
-        if match:
-            name = match[0]
-            base, ext = os.path.splitext(name)
-            return (base[:50-len(ext)] + ext)[:50]
+    elif "document" in message:
+        file_id = message["document"]["file_id"]
+        filename = message["document"]["file_name"]
 
-    clean = url.split("?")[0]
-    name = clean.split("/")[-1]
+    else:
+        send_message(chat_id, "Send a video or document.")
+        return "ok"
 
-    if "." in name:
-        base, ext = os.path.splitext(name)
-        return (base[:50-len(ext)] + ext)[:50]
+    send_message(chat_id, f"⬆ Uploading\n{filename}")
 
-    fallback = f"Upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-    return fallback
+    file_path = get_file_path(file_id)
 
+    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
 
-# ================= DELETE MENU =================
+    result = stream_upload_to_pcloud(file_url, filename)
 
-def show_delete_menu(chat_id):
+    if result.get("result") == 0:
+        send_message(chat_id, "✅ Uploaded to pCloud root")
+    else:
+        send_message(chat_id, f"❌ Upload failed\n{result}")
 
-    files = PCLOUD.list_files()
+    return "ok"
 
-    if not files:
-        send_message(chat_id, "⚠ No files to delete")
-        return
-
-    keyboard = []
-
-    for name, fid in files[:5]:
-        keyboard.append([
-            {
-                "text": f"Delete {name}",
-                "callback_data": f"delete::{fid}"
-            }
-        ])
-
-    requests.post(
-        f"{TELEGRAM_API}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": "Delete files:",
-            "reply_markup": {
-                "inline_keyboard": keyboard
-            }
-        }
-    )
-
-
-# ================= UPLOAD ENGINE =================
-
-def upload_file(chat_id, url):
-
-    try:
-
-        msg = send_message(chat_id, "🔍 Checking file...")
-        message_id = msg["result"]["message_id"]
-
-        r = requests.get(url, stream=True)
-
-        size = int(r.headers.get("Content-Length", 0))
-
-        filename = extract_filename(r.headers, url)
-
-        free = PCLOUD.get_space()
-
-        if size > free:
-
-            edit_message(
-                chat_id,
-                message_id,
-                "❌ pCloud full."
-            )
-
-            show_delete_menu(chat_id)
-            return
-
-        edit_message(
-            chat_id,
-            message_id,
-            f"⬆ Uploading\n{filename}"
-        )
-
-        uploaded = 0
-        next_update = 10
-
-        def progress_stream():
-
-            nonlocal uploaded
-            nonlocal next_update
-
-            for chunk in r.iter_content(1024*1024):
-
-                if chunk:
-
-                    uploaded += len(chunk)
-
-                    percent = int(uploaded * 100 / size)
-
-                    if percent >= next_update:
-
-                        edit_message(
-                            chat_id,
-                            message_id,
-                            f"⬆ Uploading {percent}%"
-                        )
-
-                        next_update += 10
-
-                    yield chunk
-
-        PCLOUD.upload_stream(progress_stream(), filename)
-
-        edit_message(
-            chat_id,
-            message_id,
-            "✅ Upload complete"
-        )
-
-    except Exception as e:
-
-        send_message(chat_id, f"❌ Error {str(e)}")
-
-
-# ================= WEBHOOK =================
 
 @app.route("/")
 def home():
     return "Bot Running"
 
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-
-    data = request.get_json()
-
-    if "callback_query" in data:
-
-        query = data["callback_query"]
-        chat_id = query["message"]["chat"]["id"]
-        data_val = query["data"]
-
-        if data_val.startswith("delete::"):
-
-            fileid = data_val.split("::")[1]
-
-            PCLOUD.delete_file(fileid)
-
-            send_message(chat_id, "🗑 File deleted")
-
-        return "OK"
-
-    if "message" in data:
-
-        chat_id = data["message"]["chat"]["id"]
-
-        if "text" in data["message"]:
-
-            text = data["message"]["text"]
-
-            if text.startswith("http"):
-
-                threading.Thread(
-                    target=upload_file,
-                    args=(chat_id, text)
-                ).start()
-
-            else:
-
-                send_message(chat_id, "Send direct download link")
-
-    return "OK"
-
-
-# ================= MAIN =================
-
 if __name__ == "__main__":
-
-    port = int(os.environ.get("PORT", 10000))
-
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
