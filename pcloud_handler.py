@@ -1,36 +1,65 @@
 import requests
 
+
 class PcloudHandler:
 
     def __init__(self, token):
         self.token = token
-        self.base = "https://api.pcloud.com"
 
-    def get_free_space(self):
-        url = f"{self.base}/userinfo"
-        params = {"access_token": self.token}
+    def get_space(self):
 
-        r = requests.get(url, params=params).json()
+        r = requests.get(
+            "https://api.pcloud.com/userinfo",
+            params={"auth": self.token}
+        ).json()
 
         quota = r["quota"]
         used = r["usedquota"]
 
-        free = quota - used
-        return free
+        return quota - used
 
-    def upload_file(self, file_stream, filename):
-        url = f"{self.base}/uploadfile"
+    def list_files(self):
 
-        params = {
-            "access_token": self.token,
-            "filename": filename,
+        r = requests.get(
+            "https://api.pcloud.com/listfolder",
+            params={
+                "auth": self.token,
+                "folderid": 0
+            }
+        ).json()
+
+        files = []
+
+        if "metadata" in r:
+            for f in r["metadata"]["contents"]:
+                if not f["isfolder"]:
+                    files.append((f["name"], f["fileid"]))
+
+        return files
+
+    def delete_file(self, fileid):
+
+        requests.get(
+            "https://api.pcloud.com/deletefile",
+            params={
+                "auth": self.token,
+                "fileid": fileid
+            }
+        )
+
+    def upload_stream(self, stream, filename):
+
+        url = "https://api.pcloud.com/uploadfile"
+
+        files = {
+            "file": (filename, stream)
+        }
+
+        data = {
+            "auth": self.token,
             "folderid": 0
         }
 
-        files = {
-            "file": (filename, file_stream)
-        }
-
-        r = requests.post(url, params=params, files=files)
+        r = requests.post(url, files=files, data=data)
 
         return r.json()
