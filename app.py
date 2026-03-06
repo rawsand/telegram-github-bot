@@ -1,88 +1,124 @@
 import os
-import asyncio
+import requests
 from flask import Flask, request
-
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
-)
+from pcloud_handler import PcloudHandler
+from urllib.parse import urlparse
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID"))
-RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
+PCLOUD_TOKEN = os.getenv("PCLOUD_TOKEN")
+
+TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 app = Flask(__name__)
-
-# -----------------------------
-# TELEGRAM APPLICATION
-# -----------------------------
-
-application = ApplicationBuilder().token(BOT_TOKEN).build()
+pcloud = PcloudHandler(PCLOUD_TOKEN)
 
 
-# -----------------------------
-# HANDLERS
-# -----------------------------
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot Working")
-
-
-async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if update.effective_user.id != OWNER_ID:
-        return
-
-    text = update.message.text
-
-    await update.message.reply_text(f"Received link:\n{text}")
+def send_message(chat_id, text):
+    url = f"{TELEGRAM_API}/sendMessage"
+    data = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    requests.post(url, data=data)
 
 
-application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+def get_filename_from_url(url):
+    path = urlparse(url).path
+    name = path.split("/")[-1]
+
+    if name == "":
+        name = "file.bin"
+
+    return name
 
 
-# -----------------------------
-# INITIALIZE BOT
-# -----------------------------
+def get_file_size(url):
+    try:
+        r = requests.head(url, allow_redirects=True, timeout=10)
+        size = r.headers.get("content-length")
 
-async def init_bot():
+        if size:
+            return int(size)
+    except:
+        pass
 
-    await application.initialize()
-    await application.start()
-
-    webhook_url = f"{RENDER_EXTERNAL_URL}/webhook"
-
-    await application.bot.set_webhook(webhook_url)
-
-
-asyncio.run(init_bot())
+    return None
 
 
-# -----------------------------
-# WEBHOOK
-# -----------------------------
+def format_size(size):
+    if size is None:
+        return "Unknown"
 
-@app.route("/webhook", methods=["POST"])
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+
+
+def download_stream(url):
+    r = requests.get(url, stream=True)
+    return r.raw
+
+
+@app.route("/", methods=["POST"])
 def webhook():
 
-    data = request.get_json(force=True)
+    data = request.json
 
-    update = Update.de_json(data, application.bot)
+    if "message" not in data:
+        return "ok"
 
-    asyncio.run(application.process_update(update))
+    message = data["message"]
+
+    if "text" not in message:
+        return "ok"
+
+    text = message["text"]
+    chat_id = message["chat"]["id"]
+
+    if not text.startswith("http"):
+        send_message(chat_id, "❌ Send a direct download link.")
+        return "ok"
+
+    url = text.strip()
+
+    filename = get_filename_from_url(url)
+    filesize = get_file_size(url)
+
+    free_space = pcloud.get_free_space()
+
+    send_message(
+        chat_id,
+        f"📂 File: {filename}\n"
+        f"📦 Size: {format_size(filesize)}\n"
+        f"☁ Free pCloud: {format_size(free_space)}"
+    )
+
+    if filesize and filesize > free_space:
+        send_message(chat_id, "❌ Not enough space in pCloud.")
+        return "ok"
+
+    try:
+
+        send_message(chat_id, "⬇ Downloading...")
+
+        file_stream = download_stream(url)
+
+        send_message(chat_id, "⬆ Uploading to pCloud...")
+
+        result = pcloud.upload_file(file_stream, filename)
+
+        if result.get("result") == 0:
+            send_message(chat_id, "✅ Upload completed.")
+        else:
+            send_message(chat_id, f"❌ Upload failed: {result}")
+
+    except Exception as e:
+        send_message(chat_id, f"❌ Error: {str(e)}")
 
     return "ok"
 
 
-# -----------------------------
-# HEALTH CHECK
-# -----------------------------
-
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
     return "Bot Running"
