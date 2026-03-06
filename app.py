@@ -2,7 +2,6 @@ import os
 import re
 import requests
 from flask import Flask
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, CommandHandler, ContextTypes, filters
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
