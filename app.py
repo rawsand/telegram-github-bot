@@ -1,191 +1,226 @@
 import os
 import re
 import requests
-import threading
-from datetime import datetime
-from flask import Flask, request
-from pcloud import PyCloud  # pip install pcloud
+from flask import Flask
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, CommandHandler, ContextTypes, filters
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+OWNER_ID = int(os.getenv("OWNER_ID"))
+PCLOUD_TOKEN = os.getenv("PCLOUD_TOKEN")
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+# -----------------------------
+# UTIL FUNCTIONS
+# -----------------------------
 
-PCLOUD_EMAIL = os.environ.get("PCLOUD_EMAIL")
-PCLOUD_PASSWORD = os.environ.get("PCLOUD_PASSWORD")
-PCLOUD = PyCloud(PCLOUD_EMAIL, PCLOUD_PASSWORD)
+def get_filename(url):
+    name = url.split("/")[-1]
+    name = name.split("?")[0]
+    name = re.sub(r'[^A-Za-z0-9._-]', '_', name)
 
-pending_links = {}
+    if len(name) > 60:
+        name = name[:60]
 
-# ================= ROUTES =================
-@app.route("/")
-def home():
-    return "Bot running"
+    return name
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.get_json()
 
-    if "callback_query" in data:
-        query = data["callback_query"]
-        chat_id = query["message"]["chat"]["id"]
-        choice = query["data"]
+def get_pcloud_space():
 
-        url = pending_links.get(chat_id)
+    url = "https://api.pcloud.com/userinfo"
+    params = {"auth": PCLOUD_TOKEN}
 
-        if choice.startswith("delete_one::"):
-            filename = choice.split("::")[1]
-            delete_single_file(chat_id, filename)
-            return "OK"
+    r = requests.get(url, params=params).json()
 
-        if choice == "delete_all":
-            delete_all_files(chat_id)
-            return "OK"
+    quota = r["quota"]
+    used = r["usedquota"]
 
-        return "OK"
+    free = quota - used
 
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
+    return free
 
-        if "text" in data["message"]:
-            text = data["message"]["text"]
 
-            if text == "/start":
-                send_message(chat_id, "Send a direct link.")
-            elif text.startswith("http"):
-                pending_links[chat_id] = text
-                threading.Thread(target=upload_file, args=(chat_id, text)).start()
+def format_size(size):
 
-    return "OK"
+    for unit in ['B','KB','MB','GB','TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
 
-# ================= TELEGRAM =================
-def send_message(chat_id, text):
-    requests.post(f"{TELEGRAM_API}/sendMessage", json={"chat_id": chat_id, "text": text})
 
-# ================= FILENAME =================
-def extract_filename(headers, url):
-    # Try Content-Disposition
-    cd = headers.get("Content-Disposition")
-    if cd:
-        match = re.findall(r'filename\*?=(?:UTF-8\'\')?"?([^\";]+)"?', cd)
-        if match:
-            filename = match[0].strip()
-            base, ext = os.path.splitext(filename)
-            return (base[:50-len(ext)] + ext)[:50]
+def list_files():
 
-    # Try URL path
-    if url:
-        clean_url = url.split("?")[0]
-        filename_from_url = clean_url.rstrip("/").split("/")[-1]
-        if "." in filename_from_url and len(filename_from_url) > 3:
-            base, ext = os.path.splitext(filename_from_url.strip())
-            return (base[:50-len(ext)] + ext)[:50]
+    url = "https://api.pcloud.com/listfolder"
+    params = {
+        "auth": PCLOUD_TOKEN,
+        "folderid": 0
+    }
 
-    # Fallback
-    fallback = f"DirectUpload_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-    base, ext = os.path.splitext(fallback)
-    return (base[:50-len(ext)] + ext)[:50]
+    r = requests.get(url, params=params).json()
 
-# ================= UPLOAD ENGINE =================
-def upload_file(chat_id, url):
-    try:
-        status_msg = send_message(chat_id, "🔍 Checking file...")
+    files = []
 
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            filename = extract_filename(r.headers, url)
-            total_size = int(r.headers.get("Content-Length", 0))
+    if "metadata" in r:
+        for f in r["metadata"]["contents"]:
+            if not f["isfolder"]:
+                files.append((f["name"], f["fileid"]))
 
-            # Check pCloud space
-            account_info = PCLOUD.getfolderinfo(folderid=0)
-            free_space = account_info['folderidquota'] - account_info['folderidused']
-            if total_size > free_space:
-                send_message(chat_id, "❌ pCloud Full. Delete files below.")
-                show_delete_menu(chat_id)
-                return
+    return files
 
-            send_message(chat_id, f"⬆ Uploading {filename}...")
 
-            uploaded_bytes = 0
-            gap_percent = 10
-            next_percent = gap_percent
-            chunk_size = 1024*1024  # 1 MB
+def delete_file(fileid):
 
-            def progress_chunk(chunk_len):
-                nonlocal uploaded_bytes, next_percent
-                uploaded_bytes += chunk_len
-                if total_size == 0:
-                    return
-                percent = int((uploaded_bytes / total_size) * 100)
-                if percent >= next_percent:
-                    send_message(chat_id, f"⬆ Uploading: {percent}%")
-                    next_percent += gap_percent
+    url = "https://api.pcloud.com/deletefile"
 
-            def chunked_stream(stream):
-                while True:
-                    chunk = stream.read(chunk_size)
-                    if not chunk:
-                        break
-                    progress_chunk(len(chunk))
-                    yield chunk
+    params = {
+        "auth": PCLOUD_TOKEN,
+        "fileid": fileid
+    }
 
-            PCLOUD.uploadfile(filename, chunked_stream(r.raw), folderid=0)
+    requests.get(url, params=params)
 
-            send_message(chat_id, f"✅ Upload successful!\nRoot Folder\nFile: {filename}")
 
-    except Exception as e:
-        send_message(chat_id, f"❌ Error: {str(e)}")
+# -----------------------------
+# DOWNLOAD + UPLOAD
+# -----------------------------
 
-# ================= DELETE =================
-def show_delete_menu(chat_id):
-    try:
-        files = PCLOUD.listfolder(folderid=0)['metadata']
+async def download_upload(url, update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    chat_id = update.effective_chat.id
+
+    filename = get_filename(url)
+
+    r = requests.head(url)
+    size = int(r.headers.get("content-length", 0))
+
+    free_space = get_pcloud_space()
+
+    msg = await context.bot.send_message(
+        chat_id,
+        f"📄 File: {filename}\n"
+        f"📦 Size: {format_size(size)}\n"
+        f"💾 Free Disk: {format_size(free_space)}"
+    )
+
+    if free_space < size:
+
+        files = list_files()
+
         if not files:
-            send_message(chat_id, "⚠ No files found in pCloud root.")
+            await msg.reply_text("❌ Disk Full and no files to delete")
             return
 
         keyboard = []
-        for entry in files[:5]:  # show only first 5
-            keyboard.append([{
-                "text": f"Delete {entry['name']}",
-                "callback_data": f"delete_one::{entry['name']}"
-            }])
 
-        keyboard.append([{
-            "text": "Delete ALL Files",
-            "callback_data": "delete_all"
-        }])
+        for name, fid in files[:10]:
+            keyboard.append([InlineKeyboardButton(f"Delete {name}", callback_data=f"del|{fid}")])
 
-        requests.post(f"{TELEGRAM_API}/sendMessage", json={
-            "chat_id": chat_id,
-            "text": "Select files to delete:",
-            "reply_markup": {"inline_keyboard": keyboard}
-        })
+        await msg.reply_text(
+            "⚠ Disk Full. Delete files:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
-    except Exception as e:
-        send_message(chat_id, f"❌ Could not fetch file list.\n{str(e)}")
+        return
 
-def delete_single_file(chat_id, filename):
-    try:
-        files = PCLOUD.listfolder(folderid=0)['metadata']
-        for f in files:
-            if f['name'] == filename:
-                PCLOUD.deletefile(f['path'])
-                break
-        send_message(chat_id, f"🗑 Deleted {filename}")
-    except Exception as e:
-        send_message(chat_id, f"❌ Delete error: {str(e)}")
+    # START DOWNLOAD
 
-def delete_all_files(chat_id):
-    try:
-        files = PCLOUD.listfolder(folderid=0)['metadata']
-        for f in files[:5]:  # delete only first 5
-            PCLOUD.deletefile(f['path'])
-        send_message(chat_id, "🗑 All first 5 files deleted.")
-    except Exception as e:
-        send_message(chat_id, f"❌ Delete error: {str(e)}")
+    r = requests.get(url, stream=True)
 
-# ================= MAIN =================
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    local = f"/tmp/{filename}"
+
+    downloaded = 0
+    next_update = 10
+
+    with open(local, "wb") as f:
+
+        for chunk in r.iter_content(1024 * 1024):
+
+            if chunk:
+                f.write(chunk)
+                downloaded += len(chunk)
+
+                percent = int(downloaded * 100 / size)
+
+                if percent >= next_update:
+
+                    await msg.edit_text(
+                        f"⬇ Downloading...\n{percent}%"
+                    )
+
+                    next_update += 10
+
+    await msg.edit_text("☁ Uploading to pCloud...")
+
+    upload_url = "https://api.pcloud.com/uploadfile"
+
+    files = {
+        "file": open(local, "rb")
+    }
+
+    data = {
+        "auth": PCLOUD_TOKEN,
+        "folderid": 0
+    }
+
+    requests.post(upload_url, files=files, data=data)
+
+    await msg.edit_text("✅ Upload Complete")
+
+    os.remove(local)
+
+
+# -----------------------------
+# TELEGRAM HANDLERS
+# -----------------------------
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Send me a download link.")
+
+
+async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.effective_user.id != OWNER_ID:
+        return
+
+    url = update.message.text
+
+    await download_upload(url, update, context)
+
+
+async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data.split("|")
+
+    if data[0] == "del":
+
+        delete_file(data[1])
+
+        await query.edit_message_text("🗑 File Deleted")
+
+
+# -----------------------------
+# BOT START
+# -----------------------------
+
+application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+application.add_handler(CallbackQueryHandler(delete_callback))
+
+
+@app.route("/")
+def home():
+    return "Bot Running"
+
+
+def run_bot():
+    application.run_polling()
+
+
+import threading
+threading.Thread(target=run_bot).start()
