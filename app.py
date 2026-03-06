@@ -60,7 +60,7 @@ def download_stream(url):
     return r.raw
 
 
-@app.route("/", methods=["POST"])
+@app.route("/webhook", methods=["POST"])
 def webhook():
 
     data = request.json
