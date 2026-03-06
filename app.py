@@ -1,4 +1,5 @@
 import os
+import threading
 import re
 import requests
 from flask import Flask, request
@@ -231,7 +232,10 @@ def webhook():
 
         message_id = msg["result"]["message_id"]
 
-        download_upload(text, chat_id, message_id)
+        threading.Thread(
+            target=download_upload,
+            args=(text, chat_id, message_id)
+        ).start()
 
     elif "callback_query" in data:
 
