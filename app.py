@@ -1,249 +1,88 @@
 import os
-import threading
-import re
-import requests
+import asyncio
 from flask import Flask, request
+
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OWNER_ID = int(os.getenv("OWNER_ID"))
-PCLOUD_TOKEN = os.getenv("PCLOUD_TOKEN")
-
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
 
 app = Flask(__name__)
 
-
 # -----------------------------
-# TELEGRAM SEND MESSAGE
+# TELEGRAM APPLICATION
 # -----------------------------
 
-def send_message(chat_id, text, reply_markup=None):
-
-    url = f"{TELEGRAM_API}/sendMessage"
-
-    data = {
-        "chat_id": chat_id,
-        "text": text
-    }
-
-    if reply_markup:
-        data["reply_markup"] = reply_markup
-
-    requests.post(url, json=data)
-
-
-def edit_message(chat_id, message_id, text):
-
-    url = f"{TELEGRAM_API}/editMessageText"
-
-    data = {
-        "chat_id": chat_id,
-        "message_id": message_id,
-        "text": text
-    }
-
-    requests.post(url, json=data)
+application = ApplicationBuilder().token(BOT_TOKEN).build()
 
 
 # -----------------------------
-# UTIL FUNCTIONS
+# HANDLERS
 # -----------------------------
 
-def get_filename(url):
-
-    name = url.split("/")[-1]
-    name = name.split("?")[0]
-
-    name = re.sub(r'[^A-Za-z0-9._-]', '_', name)
-
-    if len(name) > 60:
-        name = name[:60]
-
-    return name
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Bot Working")
 
 
-def format_size(size):
+async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    for unit in ['B','KB','MB','GB','TB']:
-        if size < 1024:
-            return f"{size:.2f} {unit}"
-        size /= 1024
-
-
-def get_pcloud_space():
-
-    url = "https://api.pcloud.com/userinfo"
-
-    r = requests.get(url, params={"auth": PCLOUD_TOKEN}).json()
-
-    quota = r["quota"]
-    used = r["usedquota"]
-
-    return quota - used
-
-
-def list_files():
-
-    url = "https://api.pcloud.com/listfolder"
-
-    r = requests.get(url, params={
-        "auth": PCLOUD_TOKEN,
-        "folderid": 0
-    }).json()
-
-    files = []
-
-    if "metadata" in r:
-        for f in r["metadata"]["contents"]:
-            if not f["isfolder"]:
-                files.append((f["name"], f["fileid"]))
-
-    return files
-
-
-def delete_file(fileid):
-
-    url = "https://api.pcloud.com/deletefile"
-
-    requests.get(url, params={
-        "auth": PCLOUD_TOKEN,
-        "fileid": fileid
-    })
-
-
-# -----------------------------
-# DOWNLOAD + UPLOAD
-# -----------------------------
-
-def download_upload(url, chat_id, message_id):
-
-    filename = get_filename(url)
-
-    r = requests.head(url)
-    size = int(r.headers.get("content-length", 0))
-
-    free = get_pcloud_space()
-
-    edit_message(
-        chat_id,
-        message_id,
-        f"📄 {filename}\n📦 {format_size(size)}\n💾 Free {format_size(free)}"
-    )
-
-    if free < size:
-
-        files = list_files()
-
-        if not files:
-            send_message(chat_id, "❌ Disk Full")
-            return
-
-        keyboard = {
-            "inline_keyboard": []
-        }
-
-        for name, fid in files[:10]:
-            keyboard["inline_keyboard"].append(
-                [{"text": f"Delete {name}", "callback_data": f"del|{fid}"}]
-            )
-
-        send_message(chat_id, "⚠ Delete files:", keyboard)
-
+    if update.effective_user.id != OWNER_ID:
         return
 
-    # DOWNLOAD
+    text = update.message.text
 
-    local = f"/tmp/{filename}"
+    await update.message.reply_text(f"Received link:\n{text}")
 
-    r = requests.get(url, stream=True)
 
-    downloaded = 0
-    next_update = 10
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
-    with open(local, "wb") as f:
 
-        for chunk in r.iter_content(1024*1024):
+# -----------------------------
+# INITIALIZE BOT
+# -----------------------------
 
-            if chunk:
+async def init_bot():
 
-                f.write(chunk)
-                downloaded += len(chunk)
+    await application.initialize()
+    await application.start()
 
-                percent = int(downloaded*100/size)
+    webhook_url = f"{RENDER_EXTERNAL_URL}/webhook"
 
-                if percent >= next_update:
+    await application.bot.set_webhook(webhook_url)
 
-                    edit_message(
-                        chat_id,
-                        message_id,
-                        f"⬇ Downloading {percent}%"
-                    )
 
-                    next_update += 10
-
-    edit_message(chat_id, message_id, "☁ Uploading...")
-
-    upload_url = "https://api.pcloud.com/uploadfile"
-
-    files = {"file": open(local, "rb")}
-
-    data = {
-        "auth": PCLOUD_TOKEN,
-        "folderid": 0
-    }
-
-    requests.post(upload_url, files=files, data=data)
-
-    edit_message(chat_id, message_id, "✅ Upload Complete")
-
-    os.remove(local)
+asyncio.run(init_bot())
 
 
 # -----------------------------
 # WEBHOOK
 # -----------------------------
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Bot Running"
-
-
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-    data = request.json
+    data = request.get_json(force=True)
 
-    if "message" in data:
+    update = Update.de_json(data, application.bot)
 
-        message = data["message"]
-
-        chat_id = message["chat"]["id"]
-        user_id = message["from"]["id"]
-
-        if user_id != OWNER_ID:
-            return "ok"
-
-        text = message.get("text", "")
-
-        msg = requests.post(
-            f"{TELEGRAM_API}/sendMessage",
-            json={"chat_id": chat_id, "text": "Starting..."}
-        ).json()
-
-        message_id = msg["result"]["message_id"]
-
-        threading.Thread(
-            target=download_upload,
-            args=(text, chat_id, message_id)
-        ).start()
-
-    elif "callback_query" in data:
-
-        query = data["callback_query"]
-        data = query["data"]
-
-        if data.startswith("del|"):
-            fileid = data.split("|")[1]
-            delete_file(fileid)
+    asyncio.run(application.process_update(update))
 
     return "ok"
+
+
+# -----------------------------
+# HEALTH CHECK
+# -----------------------------
+
+@app.route("/")
+def home():
+    return "Bot Running"
