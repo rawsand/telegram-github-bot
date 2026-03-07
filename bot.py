@@ -1,23 +1,22 @@
 import os
 import requests
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Environment variables set on Render
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 PCLOUD_TOKEN = os.getenv("PCLOUD_TOKEN")
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Send me a file link, and I will upload it to pCloud.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Send me a file link, and I will upload it to pCloud.")
 
-def handle_link(update: Update, context: CallbackContext):
+async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
     
     if not url.startswith("http"):
-        update.message.reply_text("Please send a valid link.")
+        await update.message.reply_text("Please send a valid link.")
         return
 
-    msg = update.message.reply_text("Upload started...")
+    msg = await update.message.reply_text("Upload started...")
     
     try:
         # Get pCloud upload server
@@ -32,22 +31,20 @@ def handle_link(update: Update, context: CallbackContext):
         
         result = upload_resp.json()
         if result.get("result") == 0:
-            msg.edit_text("✅ Upload successful!")
+            await msg.edit_text("✅ Upload successful!")
         else:
-            msg.edit_text(f"❌ Upload failed: {result.get('error', 'Unknown error')}")
+            await msg.edit_text(f"❌ Upload failed: {result.get('error', 'Unknown error')}")
 
     except Exception as e:
-        msg.edit_text(f"❌ Error: {e}")
+        await msg.edit_text(f"❌ Error: {e}")
 
 def main():
-    updater = Updater(TELEGRAM_TOKEN)
-    dp = updater.dispatcher
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
-    updater.start_polling()
-    updater.idle()
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
