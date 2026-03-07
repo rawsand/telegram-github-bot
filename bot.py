@@ -4,8 +4,9 @@ import requests
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.environ["TELEGRAM_TOKEN"]  # Fail fast if not set
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+# Environment variable for Telegram bot token
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # ================= ROUTES =================
 
