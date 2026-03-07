@@ -44,7 +44,8 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
 # Add health route
-app.web_app.router.add_get("/", health)
+if hasattr(app, "web_app"):
+    app.web_app.router.add_get("/", health)
 
 # Correct webhook URL path: /<TOKEN>
 app.run_webhook(
