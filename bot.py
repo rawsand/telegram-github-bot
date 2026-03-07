@@ -1,31 +1,43 @@
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from aiohttp import web
+from flask import Flask, request
+import requests
 
-TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-WEBHOOK_URL = os.environ["WEBHOOK_URL"]
-PORT = int(os.environ.get("PORT", 10000))
+app = Flask(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Bot is working.")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-async def health(request):
-    return web.Response(text="Bot is running")
+# ================= ROUTES =================
 
-# Build app in webhook mode
-app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+@app.route("/")
+def home():
+    return "Bot is running"
 
-# Add handler
-app.add_handler(CommandHandler("start", start))
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json()
 
-# Add health route
-if hasattr(app, "web_app"):   # <-- important check
-    app.web_app.router.add_get("/", health)
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
 
-# Run webhook
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}"
-)
+        if "text" in data["message"]:
+            text = data["message"]["text"]
+
+            if text == "/start":
+                send_message(chat_id, "Send a direct link.")
+
+    return "OK"
+
+# ================= TELEGRAM =================
+
+def send_message(chat_id, text):
+    return requests.post(
+        f"{TELEGRAM_API}/sendMessage",
+        json={"chat_id": chat_id, "text": text}
+    )
+
+# ================= MAIN =================
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
