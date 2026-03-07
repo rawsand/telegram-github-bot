@@ -48,7 +48,16 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
-    app.run_polling()
+    # Webhook settings
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Your Render service URL
+    PORT = int(os.getenv("PORT", 10000))   # default 10000
+    
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url_path=f"/{TELEGRAM_TOKEN}",
+        webhook_url=WEBHOOK_URL + f"/{TELEGRAM_TOKEN}"
+    )
 
 if __name__ == "__main__":
     main()
