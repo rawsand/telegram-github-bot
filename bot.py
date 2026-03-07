@@ -1,6 +1,7 @@
 import os
 import requests
 from flask import Flask, request
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 app = Flask(__name__)
 
@@ -52,7 +53,7 @@ def send_message(chat_id, text):
         json={"chat_id": chat_id, "text": text}
     )
 
-# ================= PCLOUD UPLOAD =================
+# ================= PCLOUD UPLOAD WITH MULTIPART =================
 def upload_to_pcloud(file_url):
     """
     Stream a file from the given URL to pCloud.
@@ -62,17 +63,21 @@ def upload_to_pcloud(file_url):
         # Step 1: Get pCloud upload server
         resp = requests.get(f"https://api.pcloud.com/getuploadserver?auth={PCLOUD_TOKEN}")
         upload_json = resp.json()
-
         if upload_json.get("result") != 0:
             return False, upload_json.get("error", "Unknown error from pCloud")
-
         upload_url = upload_json["hosts"][0]
 
-        # Step 2: Stream file from URL to pCloud
+        # Step 2: Stream file using MultipartEncoder
         with requests.get(file_url, stream=True) as r:
             r.raise_for_status()
-            files = {"file": ("uploaded_file", r.raw)}
-            upload_resp = requests.post(f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}", files=files)
+            m = MultipartEncoder(
+                fields={'file': ('uploaded_file', r.raw)}
+            )
+            upload_resp = requests.post(
+                f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}&folderid=0",
+                data=m,
+                headers={'Content-Type': m.content_type}
+            )
 
         # Step 3: Safely parse JSON response
         try:
