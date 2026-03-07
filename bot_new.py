@@ -43,20 +43,18 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Main function
 def main():
+    PORT = int(os.environ.get("PORT", 10000))
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+    
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
-
-    # Webhook settings
-    WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Your Render service URL
-    PORT = int(os.getenv("PORT", 10000))   # default 10000
     
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_url_path=f"/{TELEGRAM_TOKEN}",
-        webhook_url=WEBHOOK_URL + f"/{TELEGRAM_TOKEN}"
+        webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}",
     )
 
 if __name__ == "__main__":
