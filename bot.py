@@ -57,20 +57,17 @@ def send_message(chat_id, text):
 # ================= PCLOUD UPLOAD =================
 
 def upload_to_pcloud(file_url):
-    """
-    Stream file from given URL to pCloud.
-    Returns True if upload successful, False otherwise.
-    """
     try:
-        # Get pCloud upload server
         resp = requests.get(f"https://api.pcloud.com/getuploadserver?auth={PCLOUD_TOKEN}")
+        print("getuploadserver:", resp.json())
         upload_url = resp.json()["hosts"][0]
 
-        # Stream file from URL to pCloud
         with requests.get(file_url, stream=True) as r:
+            print("file URL status:", r.status_code)
             r.raise_for_status()
             files = {"file": ("uploaded_file", r.raw)}
             upload_resp = requests.post(f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}", files=files)
+            print("upload_resp:", upload_resp.json())
 
         result = upload_resp.json()
         return result.get("result") == 0
