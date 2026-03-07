@@ -3,12 +3,15 @@ import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
+# Environment variables set on Render
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 PCLOUD_TOKEN = os.getenv("PCLOUD_TOKEN")
 
+# Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Send me a file link, and I will upload it to pCloud.")
 
+# Handle file link messages
 async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
     
@@ -38,6 +41,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await msg.edit_text(f"❌ Error: {e}")
 
+# Main function
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
