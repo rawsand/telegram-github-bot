@@ -1,11 +1,12 @@
 import os
-from flask import Flask, request
 import requests
+from flask import Flask, request
 
 app = Flask(__name__)
 
-# Environment variable for Telegram bot token
+# Environment variables
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+PCLOUD_TOKEN = os.environ["PCLOUD_TOKEN"]  # Your pCloud auth token
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # ================= ROUTES =================
@@ -28,8 +29,19 @@ def webhook():
     chat_id = message["chat"]["id"]
     text = message.get("text", "").strip()
 
-    if text.lower() == "/start":  # case-insensitive match
+    if text.lower() == "/start":
         send_message(chat_id, "Send a direct link.")
+
+    # If text looks like a URL, start pCloud upload
+    elif text.startswith("http"):
+        send_message(chat_id, "⬆ Starting upload...")  # Step 2
+
+        success = upload_to_pcloud(text)  # Streaming upload
+
+        if success:
+            send_message(chat_id, "✅ Upload complete!")  # Step 3
+        else:
+            send_message(chat_id, "❌ Upload failed.")
 
     return "OK"
 
@@ -41,6 +53,31 @@ def send_message(chat_id, text):
         f"{TELEGRAM_API}/sendMessage",
         json={"chat_id": chat_id, "text": text}
     )
+
+# ================= PCLOUD UPLOAD =================
+
+def upload_to_pcloud(file_url):
+    """
+    Stream file from given URL to pCloud.
+    Returns True if upload successful, False otherwise.
+    """
+    try:
+        # Get pCloud upload server
+        resp = requests.get(f"https://api.pcloud.com/getuploadserver?auth={PCLOUD_TOKEN}")
+        upload_url = resp.json()["hosts"][0]
+
+        # Stream file from URL to pCloud
+        with requests.get(file_url, stream=True) as r:
+            r.raise_for_status()
+            files = {"file": ("uploaded_file", r.raw)}
+            upload_resp = requests.post(f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}", files=files)
+
+        result = upload_resp.json()
+        return result.get("result") == 0
+
+    except Exception as e:
+        print("pCloud upload error:", e)
+        return False
 
 # ================= MAIN =================
 
