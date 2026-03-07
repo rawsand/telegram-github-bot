@@ -4,7 +4,7 @@ import requests
 
 app = Flask(__name__)
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = os.environ["BOT_TOKEN"]  # Fail fast if not set
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 # ================= ROUTES =================
@@ -15,23 +15,28 @@ def home():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
+    if not data:
+        return "OK"
 
-        if "text" in data["message"]:
-            text = data["message"]["text"]
+    message = data.get("message")
+    if not message:
+        return "OK"
 
-            if text == "/start":
-                send_message(chat_id, "Send a direct link.")
+    chat_id = message["chat"]["id"]
+    text = message.get("text", "").strip()
+
+    if text.lower() == "/start":  # case-insensitive match
+        send_message(chat_id, "Send a direct link.")
 
     return "OK"
 
 # ================= TELEGRAM =================
 
 def send_message(chat_id, text):
-    return requests.post(
+    """Send message via Telegram bot."""
+    requests.post(
         f"{TELEGRAM_API}/sendMessage",
         json={"chat_id": chat_id, "text": text}
     )
