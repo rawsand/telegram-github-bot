@@ -38,7 +38,7 @@ def webhook():
     # ================= URL RECEIVED =================
     elif text.startswith("http"):
 
-        send_message(chat_id, "⬆ Starting upload to pCloud...")
+        send_message(chat_id, "⬆ Starting upload to pCloud account...")
 
         success, error = upload_to_pcloud(text)
 
