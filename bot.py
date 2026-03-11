@@ -55,44 +55,22 @@ def send_message(chat_id, text):
 
 # ================= PCLOUD UPLOAD WITH MULTIPART =================
 def upload_to_pcloud(file_url):
-    """
-    Stream a file from the given URL to pCloud.
-    Returns: (True, None) if successful, (False, error_message) if failed.
-    """
     try:
-        # Step 1: Get pCloud upload server
-        resp = requests.get(f"https://api.pcloud.com/getuploadserver?auth={PCLOUD_TOKEN}")
-        upload_json = resp.json()
-        if upload_json.get("result") != 0:
-            return False, upload_json.get("error", "Unknown error from pCloud")
-        upload_url = upload_json["hosts"][0]
 
-        # Step 2: Stream file using MultipartEncoder
-        with requests.get(file_url, stream=True) as r:
-            r.raise_for_status()
-            m = MultipartEncoder(
-                fields={
-                    "file": ("uploaded_file", r.raw, "application/octet-stream")
-                }
-            )
-            upload_resp = requests.post(
-                f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}&folderid=0",
-                data=m,
-                headers={
-                    'Content-Type': m.content_type,
-                    'Transfer-Encoding': 'chunked'
-                },
-                timeout=600
-            )
+        # Ask pCloud to download the file directly
+        resp = requests.get(
+            "https://api.pcloud.com/uploadfilefromurl",
+            params={
+                "auth": PCLOUD_TOKEN,
+                "folderid": 0,
+                "url": file_url
+            }
+        )
 
-        # Step 3: Safely parse JSON response
-        try:
-            result = upload_resp.json()
-        except ValueError:
-            return False, f"Non-JSON response: {upload_resp.text[:200]}"
+        data = resp.json()
 
-        if result.get("result") != 0:
-            return False, result.get("error", "Unknown error from pCloud upload")
+        if data.get("result") != 0:
+            return False, data.get("error", "Unknown pCloud error")
 
         return True, None
 
