@@ -78,7 +78,10 @@ def upload_to_pcloud(file_url):
             upload_resp = requests.post(
                 f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}&folderid=0",
                 data=m,
-                headers={'Content-Type': m.content_type},
+                headers={
+                    'Content-Type': m.content_type,
+                    'Transfer-Encoding': 'chunked'
+                },
                 timeout=600
             )
 
