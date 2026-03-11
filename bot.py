@@ -77,6 +77,7 @@ def upload_to_pcloud(file_url):
             }
         )
 
+        print(response.text)
         data = response.json()
 
         if data.get("result") != 0:
