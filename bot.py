@@ -71,12 +71,15 @@ def upload_to_pcloud(file_url):
         with requests.get(file_url, stream=True) as r:
             r.raise_for_status()
             m = MultipartEncoder(
-                fields={'file': ('uploaded_file', r.raw)}
+                fields={
+                    "file": ("uploaded_file", r.raw, "application/octet-stream")
+                }
             )
             upload_resp = requests.post(
                 f"https://{upload_url}/uploadfile?auth={PCLOUD_TOKEN}&folderid=0",
                 data=m,
-                headers={'Content-Type': m.content_type}
+                headers={'Content-Type': m.content_type},
+                timeout=600
             )
 
         # Step 3: Safely parse JSON response
