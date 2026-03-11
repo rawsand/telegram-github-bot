@@ -69,7 +69,7 @@ def upload_to_pcloud(file_url):
     try:
 
         response = requests.get(
-            "https://api.pcloud.com/uploadfilefromurl",
+            "https://api.pcloud.com/saveurl",
             params={
                 "auth": PCLOUD_TOKEN,
                 "folderid": 0,
