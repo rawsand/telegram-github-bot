@@ -308,11 +308,8 @@ def upload_file(chat_id, url, handler, fixed_name, overwrite, enable_delete, acc
             return
 
         link = handler.generate_share_link(f"/{filename}")
-
-        if fixed_name:
-            update_github_link(url, fixed_name.split("_")[0])
-        else:
-            update_github_link(url, "DropBoxLink")
+        
+        update_github_link(url, account_name)
 
         edit_message(chat_id, progress_id,
                      f"✅ Upload successful!\n\n{link}")
