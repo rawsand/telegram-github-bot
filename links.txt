@@ -20,7 +20,7 @@ Willow
 https://jcevents.hotstar.com/bpk-tv/e03bbf7688f4b14faa3782e78851c3d9_CTV/Fallback/e03bbf7688f4b14faa3782e78851c3d9.m3u8?|cookie=hdntl=exp=1776675371~acl=%2f*~id=827ee1057d2da0d5a5dd45c84517057f~data=hdntl~hmac=92c835cb5ea2581756c5401dea24c006996270fdc17e9c6360297a4633e46792&User-agent=Hotstar;in.startv.hotstar/25.02.24.8.11169%20(Android/15)&origin=https://www.hotstar.com&Referer=https://www.hotstar.com
 
 Prime1
-https://video-downloads.googleusercontent.com/ADGPM2kjsKb8YGUL1VfS5vMcX6KGymg3X1zmkk7UE4UOUqUVBBY-HeWYo3H4LoG4C0o3IGF9K-geZyXx6KCzY8xBAktFuuEgNDHOsQhpCuat5Tfl6tb1fXCf65liXHZt5_ss5IAZKTfxd6LjKM9SDbvKGDTgJMG97QPw6oUr-_46l8GSs1vfEteXeFBcum5pA2JreNs6FzlUxEo8xD_mpyJwm3YruSIyI17ELcA7v1XDyjn6rHRT7ss33
+https://jcevents.hotstar.com/bpk-tv/e03bbf7688f4b14faa3782e78851c3d9_CTV/Fallback/e03bbf7688f4b14faa3782e78851c3d9.m3u8?|cookie=hdntl=exp=1776675371~acl=%2f*~id=827ee1057d2da0d5a5dd45c84517057f~data=hdntl~hmac=92c835cb5ea2581756c5401dea24c006996270fdc17e9c6360297a4633e46792&User-agent=Hotstar;in.startv.hotstar/25.02.24.8.11169%20(Android/15)&origin=https://www.hotstar.com&Referer=https://www.hotstar.com
 
 Prime2
 https://video-downloads.googleusercontent.com/ADGPM2kjsKb8YGUL1VfS5vMcX6KGymg3X1zmkk7UE4UOUqUVBBY-HeWYo3H4LoG4C0o3IGF9K-geZyXx6KCzY8xBAktFuuEgNDHOsQhpCuat5Tfl6tb1fXCf65liXHZt5_ss5IAZKTfxd6LjKM9SDbvKGDTgJMG97QPw6oUr-_46l8GSs1vfEteXeFBcum5pA2JreNs6FzlUxEo8xD_mpyJwm3YruSIyI17ELcA7v1XDyjn6rHRT7ss44
