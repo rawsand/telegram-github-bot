@@ -2,7 +2,7 @@ MasterChef
 https://ne2-8e75c8a0bd7b.herokuapp.com/stream/2009783?hash=0ca048&d=true
 
 Wheeloffortune
-https://video-downloads.googleusercontent.com/ADGPM2k_ao6lFWpUQ1Ff_NKbbxzk8r9Zar3ZgToEfh1IHysDIm1vNeXe7rengKZ3EiH67kwkdj1oufW5c3yvMgDqauXo0eF0Bf-NcJlCtGj1KkpMrEB3_u-ViqNtPpTt_l2F8d3mCD3wiyo7slDkv8cAlL57dYRjVI4qc8QVvd_AuywZob-6kPtIQL5gcqI2PqCG9oS0QjRIHDLQA0O63WaNl5tRqqd440dSOx8AIIRJwa_xPkjjC1c
+https://ne6-bd9be46d442c.herokuapp.com/stream/2491139?hash=51dea8&d=true
 
 The 50
 https://filetolinkneon4-145bcdf4a2ef.herokuapp.com/stream/1464757?hash=8effff&d=true
