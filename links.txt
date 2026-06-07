@@ -14,7 +14,7 @@ DropBoxLink
 https://ne7-40d68f82e4f2.herokuapp.com/stream/2490864?hash=f601b1&d=true
 
 Sky
-https://dck1-fs-live.dtcdn.dazn.com/out/v1/814bffb9b389f652/d65feac5647949e6b45b2674d4715398/index.mpd|drmScheme=clearkey&drmLicense=01c9bbf8137e58378a5ead514998a7b4:fb01e61809e80e5e93a889cd31daab22
+https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/2szrn2y3ep/out/v1/eacd8a4207dc4f0d9661a4b085b8fdd9/cenc.mpd?|drmScheme=clearkey&drmLicense=12413e2c2855cfc59ce0fe6b20cc71ca:08d55a8f5fc93a9375f9b0cb2e1739ca
 
 Willow
 https://dck1-ac-live.cdn.indazn.com/out/v1/761f422bb93edb7b/f8e2a3d1e6024bb1991ac55a891f926f/index.mpd?|drmScheme=clearkey&drmLicense=2d9d4722b2135ef29afb0b358f8ff942:cad49f336d0b653c553df460a1db4c1a
