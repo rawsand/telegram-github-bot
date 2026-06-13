@@ -23,4 +23,4 @@ Prime1
 https://otte.live.fly.ww.aiv-cdn.net/iad-nitro/live/clients/dash/enc/vfumc0t3cc/out/v1/f14dd22c77cb4138b316baf3c970304e/cenc.mpd%7CdrmScheme=clearkey&drmLicense=7e43190efc077a8e34d29efe88667f0d:bdc614e076190e536c7aca7f66ae3f88
 
 Prime2
-https://video-downloads.googleusercontent.com/ADGPM2kjsKb8YGUL1VfS5vMcX6KGymg3X1zmkk7UE4UOUqUVBBY-HeWYo3H4LoG4C0o3IGF9K-geZyXx6KCzY8xBAktFuuEgNDHOsQhpCuat5Tfl6tb1fXCf65liXHZt5_ss5IAZKTfxd6LjKM9SDbvKGDTgJMG97QPw6oUr-_46l8GSs1vfEteXeFBcum5pA2JreNs6FzlUxEo8xD_mpyJwm3YruSIyI17ELcA7v1XDyjn6rHRT7ss44
+https://in-mc-fblive.fancode.com/mumbai/143396_english_hls_308563297d37105_1ta-di_h264/index.m3u8
