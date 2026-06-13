@@ -17,7 +17,7 @@ Sky
 https://a57live-pv-ta-amazon.akamaized.net/iad-nitro/live/clients/dash/enc/6qsuaj4hls/out/v1/eed7d72a62da4afd9f9da8744fdca16a/cenc.mpd|drmScheme=clearkey&drmLicense=d7e1c8f880d1d51abd61375e53cb13e3:812c5b33c2575c4067c304d7023acfdf
 
 Willow
-https://otte.cache.aiv-cdn.net/iad-nitro/live/clients/dash/enc/h3gdb4reni/out/v1/159b45c4cbc04cba8a9ca1a7372d3192/cenc.mpd?|drmScheme=clearkey&drmLicense=c1a959ddeedd4ffc6083f09d10445802:849993446d5264fc6990abfbd944b990
+https://live-pv-ta.amazon.fastly-edge.com/syd-nitro/startover/clients/dash/manipulated-manifest-syd-prod/enc/rjshowqwlc/out/v1/bedaa948e7a24dc0b5fd5d7b38534d8c/15af18ed-159c-44f4-8a67-76badd19f1df-cenc.mpd?|drmScheme=clearkey&drmLicense=9b19bf06f8239b22764bdff26cc4142b:abc9cdc87f040397be1d1bdaae778557
 
 Prime1
 https://ne7-40d68f82e4f2.herokuapp.com/stream/2509475?hash=441857&d=true
