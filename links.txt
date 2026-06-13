@@ -20,7 +20,7 @@ Willow
 https://live-pv-ta.amazon.fastly-edge.com/syd-nitro/startover/clients/dash/manipulated-manifest-syd-prod/enc/rjshowqwlc/out/v1/bedaa948e7a24dc0b5fd5d7b38534d8c/15af18ed-159c-44f4-8a67-76badd19f1df-cenc.mpd?|drmScheme=clearkey&drmLicense=9b19bf06f8239b22764bdff26cc4142b:abc9cdc87f040397be1d1bdaae778557
 
 Prime1
-https://otte.cache.aiv-cdn.net/iad-nitro/live/clients/dash/enc/vaplpo3app/out/v1/49b4d538ec854efa90d45084866cf7f9/cenc.mpd|drmScheme=clearkey&drmLicense=d14658a0ede94debcb4013b2056ba6d1:60838a3176127fed0eaf038a5575de11
+https://otte.live.fly.ww.aiv-cdn.net/iad-nitro/live/clients/dash/enc/vfumc0t3cc/out/v1/f14dd22c77cb4138b316baf3c970304e/cenc.mpd%7CdrmScheme=clearkey&drmLicense=7e43190efc077a8e34d29efe88667f0d:bdc614e076190e536c7aca7f66ae3f88
 
 Prime2
 https://video-downloads.googleusercontent.com/ADGPM2kjsKb8YGUL1VfS5vMcX6KGymg3X1zmkk7UE4UOUqUVBBY-HeWYo3H4LoG4C0o3IGF9K-geZyXx6KCzY8xBAktFuuEgNDHOsQhpCuat5Tfl6tb1fXCf65liXHZt5_ss5IAZKTfxd6LjKM9SDbvKGDTgJMG97QPw6oUr-_46l8GSs1vfEteXeFBcum5pA2JreNs6FzlUxEo8xD_mpyJwm3YruSIyI17ELcA7v1XDyjn6rHRT7ss44
